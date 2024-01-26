@@ -1,0 +1,48 @@
+## Build back-end
+
+[build-system]
+# requires = ["setuptools>=64", "setuptools-scm>=8"]
+# NOTE: at the time of writing,
+#  dynamic version DOES NOT work (in Windows) due to a bug in setuptools-scm
+#  See https://github.com/pypa/setuptools_scm/issues/993
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+## Project meta-data for indexers
+
+[project]
+name = "observable-properties"
+authors = [{ name = "Ángel Fernández Pineda" }]
+description = "Observable object properties"
+readme = "README.md"
+requires-python = ">=3.11"
+keywords = []
+license = { file = "LICENSE" }
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Internationalization",
+    "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)"
+]
+# dynamic = ["version"]
+version = "1.0.1"
+
+## Back-end specific configuration
+
+[tool.setuptools]
+py-modules = [
+    "appstrings"
+]
+package-dir = {"" = "src"}
+
+# [tool.setuptools_scm]
+# This table is empty on purpose
+
+
+## Other meta.data
+
+[project.urls]
+Homepage = "https://github.com/afpineda/appstrings-python"
+
+
