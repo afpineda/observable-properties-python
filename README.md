@@ -125,5 +125,5 @@ ot.unsubscribe("value",on_change)
   - The given observer was not subscribed to the given object and property.
   - The given property does not exist.
   - The given property is not observable.
-- This library holds strong references to observers. Deleting and observer does not
+- This library holds strong references to observers. Deleting an observer does not
   prevent it from executing. Unsubscribe first.
