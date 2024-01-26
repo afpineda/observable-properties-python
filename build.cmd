@@ -1,4 +1,4 @@
-@echo appstrings: build for distribution
+@echo observable_properties: build for distribution
 @echo ---------------------------------
 @echo Running build frontend:
 python -m build

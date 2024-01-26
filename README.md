@@ -4,7 +4,7 @@ In summary:
 
 - Declare observable properties using the `@observable` decorator instead of `@property`.
 - Subscribe/unsubscribe any number of callback functions to observable properties.
-- If the value of an observable property changes, all subscribed observers are executed.
+- If the value of an observable property changes, all subscribed callbacks are executed.
 
 ## How to use
 
@@ -59,7 +59,7 @@ Now, the observer is executed whenever the observed property changes at the obse
 t.value = 2000
 ```
 
-It prints:
+prints:
 
 ```text
 Test.value changes from 1000 to 2000
@@ -67,19 +67,63 @@ Test.value changes from 1000 to 2000
 
 Note that:
 
-- Observers **are not allowed** to write to the observed property.
-  `ObservablePropertyError` is raised otherwise.
+- Observers **are not allowed** to change the value of the observed property.
+  `ObservablePropertyError` is raised in such a case.
 - The same observer can subscribe to many objects and properties.
 - Any number of observers can subscribe to the same object and property.
-  All of them will run. The execution order depends on subscribing order.
+  All of them will run. The execution order depends on subscription order.
 
 ### Unsubscribe
 
 To stop observing a property, call `unsubscribe()` with the same parameters that were given to `subscribe()`:
 
 ```python
+from observable_properties import unsubscribe
+
 unsubscribe(observer,t,"value")
 ```
 
 ### Syntactic sugar
 
+To speed things up, derive your class from the `Observable` class (note the capital letter).
+The declaration itself does not differ too much from the previous example:
+
+```python
+from observable_properties import Observable
+
+class ObservableTest(Observable):
+    def __init__(self):
+        self._value = 0
+    @observable
+    def value(self):
+        return self._value
+    @value.setter
+    def value(self, value):
+        self._value = value
+```
+
+Observable classes offers another decorator for easier subscription to a single property in a single object:
+
+```python
+ot = ObservableTest()
+@ot.subscribe("value")
+def on_change(new_value):
+    old_value = ot.value
+    print(f"{ot.__class__.__name__}.value changes from {old_value} to {new_value}")
+```
+
+And the `unsubscribe()` **method**:
+
+```python
+ot.unsubscribe("value",on_change)
+```
+
+## Other notes
+
+- `unsubscribe()` does not raise any exception. Returns True on success.
+  Returns False if:
+  - The given observer was not subscribed to the given object and property.
+  - The given property does not exist.
+  - The given property is not observable.
+- This library holds strong references to observers. Deleting and observer does not
+  prevent it from executing. Unsubscribe first.

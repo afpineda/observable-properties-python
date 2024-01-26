@@ -22,17 +22,16 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
-    "Topic :: Software Development :: Internationalization",
     "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)"
 ]
 # dynamic = ["version"]
-version = "1.0.1"
+version = "0.0.1"
 
 ## Back-end specific configuration
 
 [tool.setuptools]
 py-modules = [
-    "appstrings"
+    "observable_properties"
 ]
 package-dir = {"" = "src"}
 
