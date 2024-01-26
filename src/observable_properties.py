@@ -17,11 +17,13 @@ If the value of an observable property changes, all subscribed observers are exe
 Functions:
     subscribe(): subscribe a callback to changes in observable properties.
     unsubscribe(): unsubscribe a callback from changes in observable properties.
-    observer(): prototype of a subscribable callback for documentation purposes.
 
 Classes:
     Observable: helper class for easy subscription to observable properties.
 
+Types:
+    Observer: Callback prototype for observable properties.
+    InstanceObserver:
 
 Exceptions:
     ObservablePropertyError: for invalid operations on observable object properties.
@@ -46,6 +48,36 @@ from typing import Callable, Any
 from functools import wraps
 from inspect import iscoroutinefunction
 from asyncio import run
+
+# *****************************************************************************
+# Types
+# *****************************************************************************
+
+Observer = Callable[[object, str, Any], None]
+"""Callback prototype for observable properties.
+
+Called just before the property's value is actually modified.
+
+Args:
+    instance (object): object being observed
+    property_name (str): name of the property that is about to change
+    value (Any): new value of the property
+
+Raises:
+    ObservablePropertyError: attempt to modify the property being observed.
+"""
+
+InstanceObserver = Callable[[Any], None]
+"""Callback prototype for known observable properties in known objects.
+
+Called just before the property's value is actually modified.
+
+Args:
+    value (Any): new value of the property
+
+Raises:
+    ObservablePropertyError: attempt to modify the property being observed.
+"""
 
 # *****************************************************************************
 # Exceptions
@@ -100,9 +132,7 @@ class observable(property):
 class Observable:
     """Helper class for easy subscription to observable properties."""
 
-    def unsubscribe(
-        self, property_name: str, callback: Callable[[object, str, Any], None]
-    ) -> bool:
+    def unsubscribe(self, property_name: str, callback: Observer) -> bool:
         """Unsubscribe a callback from changes in an observable property of this object.
 
         Args:
@@ -115,7 +145,7 @@ class Observable:
         """
         return unsubscribe(callback, self, property_name)
 
-    def subscribe(self, property_name: str):
+    def subscribe(self, property_name: str) -> None:
         """Decorator to subscribe a callback to an observable property of this object.
 
         Args:
@@ -125,7 +155,7 @@ class Observable:
             ObservablePropertyError: if the requested property is not observable
         """
 
-        def wrapper(func: Callable[[Any], Any]):
+        def wrapper(func: InstanceObserver):
             @wraps(func)
             def callback(instance: object, name: str, value: Any):
                 if iscoroutinefunction(func):
@@ -144,25 +174,7 @@ class Observable:
 # *****************************************************************************
 
 
-def observer(instance: object, property_name: str, value: Any):
-    """Callback prototype for observable properties
-
-    Called just before the property's value is actually modified.
-
-    Args:
-        instance (object): object being observed
-        property_name (str): name of the property that is about to change
-        value (Any): new value of the property
-
-    Raises:
-        ObservablePropertyError: attempt to modify the property being observed.
-    """
-    ...
-
-
-def subscribe(
-    callback: Callable[[object, str, Any], None], instance: object, property_name: str
-):
+def subscribe(callback: Observer, instance: object, property_name: str) -> None:
     """Subscribe a callback to changes in observable properties.
 
     Args:
@@ -184,9 +196,7 @@ def subscribe(
         )
 
 
-def unsubscribe(
-    callback: Callable[[object, str, Any], None], instance: object, property_name: str
-) -> bool:
+def unsubscribe(callback: Observer, instance: object, property_name: str) -> bool:
     """Unsubscribe a callback from changes in observable properties.
 
     Args:
@@ -348,7 +358,6 @@ if __name__ == "__main__":
         print("Failure.")
     except:
         pass
-
 
     print("-- Subscribing observer 3")
 
