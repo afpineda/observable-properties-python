@@ -1,4 +1,4 @@
-# Observable object properties
+# Observable managed attributes (also known as "observable properties")
 
 In summary:
 
@@ -45,7 +45,7 @@ def observer(instance,property_name,new_value):
     print(f"{instance.__class__.__name__}.{property_name} changes from {old_value} to {new_value}")
 ```
 
-To start observing a property, call `subscribe()` passing the instance and property name to observe:
+To start observing a property, call `subscribe()` passing the instance and property name to observe along with the callback function:
 
 ```python
 from observable_properties import subscribe
@@ -53,7 +53,8 @@ from observable_properties import subscribe
 subscribe(observer,t,"value")
 ```
 
-Now, the observer is executed whenever the observed property changes at the observed object:
+Which means "subscribe `observer` to `t.value`".
+Now, the observer is executed whenever the value of the observed property changes at the observed object:
 
 ```python
 t.value = 2000
@@ -120,12 +121,11 @@ ot.unsubscribe("value",on_change)
 
 ## Other notes
 
-- `unsubscribe()` does not raise any exception. Returns True on success.
-  Returns False if:
-  - The given observer was not subscribed to the given object and property.
-  - The given property does not exist.
-  - The given property is not observable.
+- Both `subscribe()` and `unsubscribe()` raise `ObservablePropertyError` on non-observable
+  or non-existing properties.
+- Subscribing twice to the same object and property has no effect.
+- Unsubscribing to non-subscribed properties has no effect, but `unsubscribe()` returns False.
 - Objects hold strong references to observers. Deleting an observer does not
-  prevent it from executing. Unsubscribe first.
+  prevent it from running. Unsubscribe first.
 - Coroutines are accepted as observers. They are executed by the means of
   [asyncio.run()](https://docs.python.org/3/library/asyncio-runner.html#asyncio.run)
