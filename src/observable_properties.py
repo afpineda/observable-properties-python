@@ -44,9 +44,11 @@ __all__ = [
 
 from typing import Callable, Any
 from functools import wraps
+from inspect import iscoroutinefunction
+from asyncio import run
 
 # *****************************************************************************
-# Classes
+# Exceptions
 # *****************************************************************************
 
 
@@ -56,6 +58,11 @@ class ObservablePropertyError(Exception):
     pass
 
 
+# *****************************************************************************
+# Classes
+# *****************************************************************************
+
+
 class observable(property):
     def __set__(self, __instance: Any, __value: Any) -> None:
         subscribers = getattr(__instance, self.subscribers)
@@ -63,7 +70,10 @@ class observable(property):
         for observer in subscribers:
             if observer not in recursions:
                 recursions.append(observer)
-                observer(__instance, self.observable_property, __value)
+                if iscoroutinefunction(observer):
+                    run(observer(__instance, self.observable_property, __value))
+                else:
+                    observer(__instance, self.observable_property, __value)
             else:
                 raise ObservablePropertyError(
                     f"'{observer.__name__}' is not allowed to modify observable property "
@@ -88,6 +98,8 @@ class observable(property):
 
 
 class Observable:
+    """Helper class for easy subscription to observable properties."""
+
     def unsubscribe(
         self, property_name: str, callback: Callable[[object, str, Any], None]
     ) -> bool:
@@ -116,7 +128,10 @@ class Observable:
         def wrapper(func: Callable[[Any], Any]):
             @wraps(func)
             def callback(instance: object, name: str, value: Any):
-                return func(value)
+                if iscoroutinefunction(func):
+                    return run(func(value))
+                else:
+                    return func(value)
 
             subscribe(callback, self, property_name)
             return callback
@@ -180,8 +195,10 @@ def unsubscribe(
         property_name (str): name of the observed property at the given instance.
 
     Returns:
-         bool: True on success. If false, the property is not observable or
-               the callback was not subscribed.
+         bool: True on success. False if the callback was not subscribed.
+
+    Raises:
+        ObservablePropertyError: if the requested property is not observable.
     """
     subscribers_attr_name = "__" + property_name + "_subscribers"
     if hasattr(instance, subscribers_attr_name):
@@ -189,7 +206,11 @@ def unsubscribe(
         if callback in subscribers:
             subscribers.remove(callback)
             return True
-    return False
+        return False
+    else:
+        raise ObservablePropertyError(
+            f"{property_name} is not an observable property of {instance.__class__.__name__}"
+        )
 
 
 # *****************************************************************************
@@ -268,8 +289,27 @@ if __name__ == "__main__":
         print("Failure #1")
     except ObservablePropertyError:
         pass
+    try:
+        subscribe(observer2, item, "name")
+        print("Failure #2")
+    except ObservablePropertyError:
+        pass
 
-    test_reset()
+    print("-- Subscribing to non-existing property")
+    try:
+
+        @item.subscribe("foo")
+        def non_valid2(value):
+            pass
+
+        print("Failure #1")
+    except ObservablePropertyError:
+        pass
+    try:
+        subscribe(observer2, item, "foo")
+        print("Failure #2")
+    except ObservablePropertyError:
+        pass
 
     print("-- Assign value to observable property")
     test_reset()
@@ -292,18 +332,56 @@ if __name__ == "__main__":
     assert_obs2(None)
 
     print("-- Unsubscribing observer 2 again")
-    test_reset()
     if unsubscribe(observer2, item, "value"):
         print("Failure.")
+
+    print("-- Unsubscribing to non-observable property")
+    try:
+        unsubscribe(observer2, item, "name")
+        print("Failure.")
+    except:
+        pass
+
+    print("-- Unsubscribing to non-existing property")
+    try:
+        unsubscribe(observer2, item, "foo")
+        print("Failure.")
+    except:
+        pass
+
 
     print("-- Subscribing observer 3")
 
     @item.subscribe("value")
     def observer3(value):
-        item.value = value+1
+        item.value = value + 1
 
     print("-- Testing observer 3 behavior (infinite loop?)")
     try:
         item.value = 4
     except ObservablePropertyError:
         pass
+    item.unsubscribe("value", observer3)
+
+    print("-- Testing async observer 4 (printing for eye-review)")
+    from asyncio import sleep
+
+    async def observer4(instance: object, property_name: str, value: Any):
+        await sleep(1)
+        print(f"--   observer 4 finished: value={value}")
+
+    subscribe(observer4, item, "value")
+    item.value = 5
+    unsubscribe(observer4, item, "value")
+
+    print("-- Testing async observer 5 (printing for eye-review)")
+
+    @item.subscribe("value")
+    async def observer5(value: Any):
+        await sleep(1)
+        print(f"--   observer 5 finished: value={value}")
+
+    item.value = 6
+    item.unsubscribe("value", observer5)
+
+    print("--- END ---")

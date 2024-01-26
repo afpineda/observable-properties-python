@@ -85,7 +85,7 @@ unsubscribe(observer,t,"value")
 
 ### Syntactic sugar
 
-To speed things up, derive your class from the `Observable` class (note the capital letter).
+To speed things up, derive your class from the `Observable` class (**note the capital letter**).
 The declaration itself does not differ too much from the previous example:
 
 ```python
@@ -125,5 +125,7 @@ ot.unsubscribe("value",on_change)
   - The given observer was not subscribed to the given object and property.
   - The given property does not exist.
   - The given property is not observable.
-- This library holds strong references to observers. Deleting an observer does not
+- Objects hold strong references to observers. Deleting an observer does not
   prevent it from executing. Unsubscribe first.
+- Coroutines are accepted as observers. They are executed by the means of
+  [asyncio.run()](https://docs.python.org/3/library/asyncio-runner.html#asyncio.run)
