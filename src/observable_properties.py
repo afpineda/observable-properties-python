@@ -3,7 +3,7 @@
 #
 # @author Ángel Fernández Pineda. Madrid. Spain.
 # @date 2024-01-26
-# @brief Observable properties for objects
+# @brief Observable managed attributes
 # @copyright 2024. Ángel Fernández Pineda. Madrid. Spain.
 # @license Licensed under the EUPL
 # *****************************************************************************
@@ -22,8 +22,8 @@ Classes:
     Observable: helper class for easy subscription to observable properties.
 
 Types:
-    Observer: Callback prototype for observable properties.
-    InstanceObserver:
+    Observer: callback prototype for observable properties.
+    InstanceObserver: callback prototype for known observable properties in known objects.
 
 Exceptions:
     ObservablePropertyError: for invalid operations on observable object properties.
