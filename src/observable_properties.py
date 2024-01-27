@@ -99,19 +99,21 @@ class observable(property):
     def __set__(self, __instance: Any, __value: Any) -> None:
         subscribers = getattr(__instance, self.subscribers)
         recursions = getattr(__instance, self.recursions)
-        for observer in subscribers:
-            if observer not in recursions:
-                recursions.append(observer)
-                if iscoroutinefunction(observer):
-                    run(observer(__instance, self.observable_property, __value))
+        try:
+            for observer in subscribers:
+                if observer not in recursions:
+                    recursions.append(observer)
+                    if iscoroutinefunction(observer):
+                        run(observer(__instance, self.observable_property, __value))
+                    else:
+                        observer(__instance, self.observable_property, __value)
                 else:
-                    observer(__instance, self.observable_property, __value)
-            else:
-                raise ObservablePropertyError(
-                    f"'{observer.__name__}' is not allowed to modify observable property "
-                    + f"'{__instance.__class__.__name__}.{self.observable_property}'"
-                )
-        recursions.clear()
+                    raise ObservablePropertyError(
+                        f"'{observer.__name__}' is not allowed to modify observable property "
+                        + f"'{__instance.__class__.__name__}.{self.observable_property}'"
+                    )
+        finally:
+            recursions.clear()
         super().__set__(__instance, __value)
 
     def __delete__(self, __instance: Any) -> None:
