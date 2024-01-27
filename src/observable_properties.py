@@ -23,7 +23,6 @@ Classes:
 
 Types:
     Observer: callback prototype for observable properties.
-    InstanceObserver: callback prototype for known observable properties in known objects.
 
 Exceptions:
     ObservablePropertyError: for invalid operations on observable object properties.
