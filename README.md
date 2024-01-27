@@ -119,6 +119,15 @@ And the `unsubscribe()` **method**:
 ot.unsubscribe("value",on_change)
 ```
 
+An already-defined observer may subscribe to a property in this way:
+
+```python
+def another_observer(new_value):
+  ...
+
+ot.subscribe("value")(another_observer)
+```
+
 ## Other notes
 
 - Both `subscribe()` and `unsubscribe()` raise `ObservablePropertyError` on non-observable
