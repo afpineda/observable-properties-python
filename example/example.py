@@ -26,7 +26,7 @@ class Test:
 
 t = Test()
 t.value = 1000
-print(f"Current value: {t.value}")
+print(f"Current value of t: {t.value}")
 
 
 def observer(instance, property_name, new_value):
@@ -58,9 +58,9 @@ ot = ObservableTest()
 
 
 @ot.subscribe("value")
-def on_change(new_value):
+def on_change(instance, property_name, new_value):
     old_value = ot.value
-    print(f"{ot.__class__.__name__}.value changes from {old_value} to {new_value}")
+    print(f"ot.value changes from {old_value} to {new_value}")
 
 
 ot.value = 900

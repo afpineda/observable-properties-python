@@ -108,9 +108,10 @@ Observable classes offers another decorator for easier subscription to a single 
 ```python
 ot = ObservableTest()
 @ot.subscribe("value")
-def on_change(new_value):
+def on_change(instance, property_name, new_value):
     old_value = ot.value
-    print(f"{ot.__class__.__name__}.value changes from {old_value} to {new_value}")
+    print(f"ot.value changes from {old_value} to {new_value}")
+
 ```
 
 And the `unsubscribe()` **method**:

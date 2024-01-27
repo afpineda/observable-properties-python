@@ -67,18 +67,6 @@ Raises:
     ObservablePropertyError: attempt to modify the property being observed.
 """
 
-InstanceObserver = Callable[[Any], None]
-"""Callback prototype for known observable properties in known objects.
-
-Called just before the property's value is actually modified.
-
-Args:
-    value (Any): new value of the property
-
-Raises:
-    ObservablePropertyError: attempt to modify the property being observed.
-"""
-
 # *****************************************************************************
 # Exceptions
 # *****************************************************************************
@@ -157,18 +145,19 @@ class Observable:
             ObservablePropertyError: if the requested property is not observable
         """
 
-        def wrapper(func: InstanceObserver):
+        def wrapper(func: Observer):
             @wraps(func)
             def callback(instance: object, name: str, value: Any):
                 if iscoroutinefunction(func):
-                    return run(func(value))
+                    return run(func(instance, name, value))
                 else:
-                    return func(value)
+                    return func(instance, name, value)
 
             subscribe(callback, self, property_name)
             return callback
 
         return wrapper
+
 
 
 # *****************************************************************************
@@ -275,7 +264,7 @@ if __name__ == "__main__":
     print("-- Subscribing observer 1")
 
     @item.subscribe("value")
-    def observer1(value):
+    def observer1(instance: object, property_name: str, value: Any):
         global __obs1
         __obs1 = value
 
@@ -311,7 +300,7 @@ if __name__ == "__main__":
     try:
 
         @item.subscribe("foo")
-        def non_valid2(value):
+        def non_valid2(instance,name,value):
             pass
 
         print("Failure #1")
@@ -364,7 +353,7 @@ if __name__ == "__main__":
     print("-- Subscribing observer 3")
 
     @item.subscribe("value")
-    def observer3(value):
+    def observer3(instance,name,value):
         item.value = value + 1
 
     print("-- Testing observer 3 behavior (infinite loop?)")
@@ -388,7 +377,7 @@ if __name__ == "__main__":
     print("-- Testing async observer 5 (printing for eye-review)")
 
     @item.subscribe("value")
-    async def observer5(value: Any):
+    async def observer5(instance,name,value):
         await sleep(1)
         print(f"--   observer 5 finished: value={value}")
 
