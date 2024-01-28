@@ -125,7 +125,7 @@ class ObservableTest(Observable):
         self._value = value
 ```
 
-Observable classes offers `subscribe()` and `unsubscribe()` **methods** with a slightly different
+Observable classes offer `subscribe()` and `unsubscribe()` **methods** with a slightly different
 syntax to their function counterparts:
 
 ```python
