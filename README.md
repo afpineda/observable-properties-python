@@ -62,7 +62,7 @@ t.value = 2000
 prints:
 
 ```text
-t.value = 2000
+Test.value = 2000
 ```
 
 An observer may also subscribe in this way to be executed **before** the value changes:

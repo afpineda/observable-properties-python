@@ -52,7 +52,6 @@ from asyncio import run
 # *****************************************************************************
 # Types
 # *****************************************************************************
-# Observer = Callable[[object, str, Any], None]
 
 Observer = Callable[[object, str, Any], None | Coroutine[Any, Any, None]]
 """Callback prototype for observable properties.
