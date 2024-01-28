@@ -30,15 +30,20 @@ print(f"Current value of t: {t.value}")
 
 
 def observer(instance, property_name, new_value):
+    print(f"{instance.__class__.__name__}.{property_name} = {new_value}")
+
+
+subscribe(observer, t, "value")
+t.value = 2000
+
+
+def observer_before(instance, property_name, new_value):
     old_value = getattr(instance, property_name)
     print(
         f"{instance.__class__.__name__}.{property_name} changes from {old_value} to {new_value}"
     )
-
-
-subscribe(observer, t, "value")
-
-t.value = 2000
+subscribe(observer_before, t, "value",before=True)
+t.value = 3000
 
 
 class ObservableTest(Observable):
@@ -55,16 +60,7 @@ class ObservableTest(Observable):
 
 
 ot = ObservableTest()
-
-
-@ot.subscribe("value")
-def on_change(instance, property_name, new_value):
-    old_value = ot.value
-    print(f"ot.value changes from {old_value} to {new_value}")
-
-
+ot.subscribe("value",observer)
 ot.value = 900
-
-ot.unsubscribe("value", on_change)
-
+ot.unsubscribe("value", observer)
 ot.value = 500
