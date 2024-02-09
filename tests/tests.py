@@ -38,6 +38,12 @@ class Test(Observable):
     def name(self, value):
         self._name = value
 
+    def indirect(self, value):
+        self._observable_notify("value", value * 2)
+
+    def indirect_failure(self, value):
+        self._observable_notify("name", value * 2)
+
 
 def assert_obs1(expected):
     global __obs1
@@ -96,7 +102,7 @@ def test_reset():
     unsubscribe(observer_before, item, "value")
     unsubscribe(observer_after, item, "value")
     unsubscribe(invalid_observer, item, "value")
-    unsubscribe(async_observer,item,"value")
+    unsubscribe(async_observer, item, "value")
 
 
 print("-- Subscribing to non-observable property")
@@ -170,7 +176,7 @@ try:
 except ObservablePropertyError:
     pass
 except RecursionError:
-    print ("Failure")
+    print("Failure")
 
 
 print("-- Testing callbacks before and after actual value change")
@@ -185,7 +191,20 @@ assert_obs2(5)
 
 print("-- Testing async observer (printing for eye-review)")
 test_reset()
-subscribe(async_observer,item,"value")
+subscribe(async_observer, item, "value")
 item.value = 7
+
+print("-- Testing in-class invalid indirect change")
+test_reset()
+subscribe(observer1, item, "value")
+try:
+    item.indirect_failure(1000)
+    print("Failure.")
+except ObservablePropertyError:
+    pass
+
+print("-- Testing in-class indirect change")
+item.indirect(1)
+assert_obs1(2)
 
 print("--- END ---")

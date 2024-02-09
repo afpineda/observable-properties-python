@@ -14,7 +14,6 @@ Use the `@observable` decorator as you do with `@property`:
 
 ```python
 from observable_properties import observable
-
 class Test():
     def __init__(self):
         self._value = 0
@@ -113,7 +112,6 @@ The declaration itself does not differ too much from the previous example:
 
 ```python
 from observable_properties import Observable
-
 class ObservableTest(Observable):
     def __init__(self):
         self._value = 0
@@ -141,6 +139,69 @@ prints:
 ```text
 ObservableTest.value = 900
 ```
+
+#### Observable changes triggered from *non-setter* methods
+
+A public *setter* is **not mandatory** for observable properties of an `Observable` instance.
+
+The class itself can notify changes in observable properties by placing a call to the inherited method `_observable_notify()`,
+which executes subscribed observers. For example:
+
+```python
+class Duplicator(Observable):
+    def __init__(self, initial_value=1):
+        self._value = initial_value
+    @observable
+    def value(self):
+        return self._value
+    def duplicate(self):
+        new_value = self._value * 2
+        # Trigger subscribed observers before actual change
+        self._observable_notify("value", new_value, True)
+        self._value = new_value
+        # Trigger subscribed observers after actual change
+        self._observable_notify("value", new_value)
+dup = Duplicator(100)
+dup.subscribe("value", observer)
+dup.subscribe("value", observer_before, True)
+dup.duplicate()
+```
+
+prints:
+
+```text
+Duplicator.value changes from 100 to 200
+Duplicator.value = 200
+```
+
+A common use case is to compute observable properties "on the fly":
+
+```python
+class Product(Observable):
+    def __init__(self):
+        self._a = 0;
+        self._b = 0
+    @observable
+    def value(self):
+        return self._a*self._b
+    def set(self, a, b):
+        self._a = a
+        self._b = b
+        self._observable_notify("value",self.value)
+mult = Product()
+mult.subscribe("value", observer)
+mult.subscribe("value", observer_before, True)
+mult.set(3,5)
+```
+
+prints:
+
+```text
+Multiplier.value = 15
+```
+
+**Note** that `observer_before` was **not executed** in the later example
+because the resulting value of the observable property is unknown before the computation itself takes place.
 
 ## Other notes
 

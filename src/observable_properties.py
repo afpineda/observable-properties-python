@@ -82,7 +82,9 @@ class ObservablePropertyError(Exception):
 
 
 class observable(property):
-    def _execute_callbacks(self, __instance: Any, __value: Any, subscribers: list, recursions: list):
+    def __execute_callbacks(
+        self, __instance: Any, __value: Any, subscribers: list, recursions: list
+    ):
         for observer in subscribers:
             if observer not in recursions:
                 recursions.append(observer)
@@ -96,13 +98,25 @@ class observable(property):
                     + f"'{__instance.__class__.__name__}.{self.observable_property}'"
                 )
 
+    def _run_observers(self, __instance: Any, __value: Any, before: bool = False):
+        subscribers = getattr(__instance, self.subscribers)
+        recursions = getattr(__instance, self.recursions)
+        try:
+            self.__execute_callbacks(
+                __instance, __value, subscribers[before], recursions
+            )
+        finally:
+            recursions.clear()
+
     def __set__(self, __instance: Any, __value: Any) -> None:
         subscribers = getattr(__instance, self.subscribers)
         recursions = getattr(__instance, self.recursions)
         try:
-            self._execute_callbacks(__instance, __value, subscribers[True], recursions)
+            self.__execute_callbacks(__instance, __value, subscribers[True], recursions)
             super().__set__(__instance, __value)
-            self._execute_callbacks(__instance, __value, subscribers[False], recursions)
+            self.__execute_callbacks(
+                __instance, __value, subscribers[False], recursions
+            )
         finally:
             recursions.clear()
 
@@ -133,7 +147,8 @@ class Observable:
             property_name (str): name of the property to observe in this object.
             callback (Callable[[object, str, Any], None]): function to subscribe.
             before (bool): When True, the callback is executed just before the value changes,
-                           otherwise, after the value changes.
+                           otherwise, after the value changes. May not get called if there is
+                           no *setter* for the observable property, depending on class implementation.
 
         Raises:
             ObservablePropertyError: if the requested property is not observable or does not exist.
@@ -152,6 +167,27 @@ class Observable:
         """
         return unsubscribe(callback, self, property_name)
 
+    def _observable_notify(
+        self, property_name: str, value: Any, before: bool = False
+    ) -> None:
+        """Run subscribers (if any) of an observable property.
+
+        Args:
+            property_name (str): name of the property that changes.
+            value (Any): value to be notified.
+            before (bool): run subscribers before (True) or after (False) actual change.
+
+        Raises:
+            ObservablePropertyError: if the given property is not observable or does not exist.
+        """
+        vrs = vars(self.__class__)
+        if (property_name in vrs) and isinstance(vrs[property_name], observable):
+            vrs[property_name]._run_observers(self, value, before)
+        else:
+            raise ObservablePropertyError(
+                f"'{property_name}' is not an observable property of '{self.__class__.__name__}'"
+            )
+
 
 # *****************************************************************************
 # "public" functions
@@ -168,7 +204,8 @@ def subscribe(
         instance (object): instance to observe.
         property_name (str): name of the property to observe at the given instance.
         before (bool): When True, the callback is executed just before the value changes,
-                       otherwise, after the value changes.
+                       otherwise, after the value changes. May not get called if there is
+                       no *setter* for the observable property, depending on class implementation.
 
     Raises:
         ObservablePropertyError: if the requested property is not observable or does not exist.
