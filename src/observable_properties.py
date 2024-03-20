@@ -48,6 +48,7 @@ __all__ = [
 from typing import Callable, Any, Coroutine
 from inspect import iscoroutinefunction
 from asyncio import run
+from contextlib import contextmanager
 
 # *****************************************************************************
 # Types
@@ -98,13 +99,11 @@ class observable(property):
                     + f"'{__instance.__class__.__name__}.{self.observable_property}'"
                 )
 
-    def _run_observers(self, __instance: Any, __value: Any, before: bool = False):
+    def _run_observers(self, __instance: Any, __value: Any):
         subscribers = getattr(__instance, self.subscribers)
         recursions = getattr(__instance, self.recursions)
         try:
-            self.__execute_callbacks(
-                __instance, __value, subscribers[before], recursions
-            )
+            self.__execute_callbacks(__instance, __value, subscribers, recursions)
         finally:
             recursions.clear()
 
@@ -112,11 +111,8 @@ class observable(property):
         subscribers = getattr(__instance, self.subscribers)
         recursions = getattr(__instance, self.recursions)
         try:
-            self.__execute_callbacks(__instance, __value, subscribers[True], recursions)
             super().__set__(__instance, __value)
-            self.__execute_callbacks(
-                __instance, __value, subscribers[False], recursions
-            )
+            self.__execute_callbacks(__instance, __value, subscribers, recursions)
         finally:
             recursions.clear()
 
@@ -130,7 +126,7 @@ class observable(property):
         self.subscribers = f"__{owner_name}_subscribers"
         self.recursions = f"__{owner_name}_recursions"
         if not hasattr(owner, self.subscribers):
-            setattr(owner, self.subscribers, ([], []))
+            setattr(owner, self.subscribers, [])
         if not hasattr(owner, self.recursions):
             setattr(owner, self.recursions, [])
 
@@ -138,22 +134,17 @@ class observable(property):
 class Observable:
     """Helper class for easy subscription to observable properties."""
 
-    def subscribe(
-        self, property_name: str, callback: Observer, before: bool = False
-    ) -> None:
+    def subscribe(self, property_name: str, callback: Observer) -> None:
         """Subscribe a callback to changes in observable properties of this object.
 
         Args:
             property_name (str): name of the property to observe in this object.
             callback (Callable[[object, str, Any], None]): function to subscribe.
-            before (bool): When True, the callback is executed just before the value changes,
-                           otherwise, after the value changes. May not get called if there is
-                           no *setter* for the observable property, depending on class implementation.
 
         Raises:
             ObservablePropertyError: if the requested property is not observable or does not exist.
         """
-        return subscribe(callback, self, property_name, before)
+        return subscribe(callback, self, property_name)
 
     def unsubscribe(self, property_name: str, callback: Observer) -> bool:
         """Unsubscribe a callback to changes in an observable property of this object.
@@ -167,26 +158,35 @@ class Observable:
         """
         return unsubscribe(callback, self, property_name)
 
-    def _observable_notify(
-        self, property_name: str, value: Any, before: bool = False
-    ) -> None:
+    def _observable_notify(self, property_name: str) -> None:
         """Run subscribers (if any) of an observable property.
 
         Args:
             property_name (str): name of the property that changes.
-            value (Any): value to be notified.
-            before (bool): run subscribers before (True) or after (False) actual change.
 
         Raises:
             ObservablePropertyError: if the given property is not observable or does not exist.
         """
         vrs = vars(self.__class__)
         if (property_name in vrs) and isinstance(vrs[property_name], observable):
-            vrs[property_name]._run_observers(self, value, before)
+            vrs[property_name]._run_observers(self, getattr(self, property_name))
         else:
             raise ObservablePropertyError(
                 f"'{property_name}' is not an observable property of '{self.__class__.__name__}'"
             )
+
+    @contextmanager
+    def _observable(self, property_name: str):
+        """Run subscribers (if any) of an observable property on context exit.
+
+        Args:
+            property_name (str): name of the property that changes.
+
+        Raises:
+            ObservablePropertyError: if the given property is not observable or does not exist.
+        """
+        yield
+        self._observable_notify(property_name)
 
 
 # *****************************************************************************
@@ -195,7 +195,7 @@ class Observable:
 
 
 def subscribe(
-    callback: Observer, instance: object, property_name: str, before: bool = False
+    callback: Observer, instance: object, property_name: str
 ) -> None:
     """Subscribe a callback to changes in observable properties.
 
@@ -203,18 +203,14 @@ def subscribe(
         callback (Callable[[object, str, Any], None]): function to subscribe.
         instance (object): instance to observe.
         property_name (str): name of the property to observe at the given instance.
-        before (bool): When True, the callback is executed just before the value changes,
-                       otherwise, after the value changes. May not get called if there is
-                       no *setter* for the observable property, depending on class implementation.
 
     Raises:
         ObservablePropertyError: if the requested property is not observable or does not exist.
     """
     unsubscribe(callback, instance, property_name)
-    b = bool(before)
     subscribers_attr_name = f"__{property_name}_subscribers"
     subscribers = getattr(instance, subscribers_attr_name)
-    subscribers[b].append(callback)
+    subscribers.append(callback)
 
 
 def unsubscribe(callback: Observer, instance: object, property_name: str) -> bool:
@@ -234,14 +230,11 @@ def unsubscribe(callback: Observer, instance: object, property_name: str) -> boo
     subscribers_attr_name = f"__{property_name}_subscribers"
     if hasattr(instance, subscribers_attr_name):
         subscribers = getattr(instance, subscribers_attr_name)
-        result = False
-        if callback in subscribers[False]:
-            subscribers[False].remove(callback)
-            result = True
-        if callback in subscribers[True]:
-            subscribers[True].remove(callback)
-            result = True
-        return result
+        if callback in subscribers:
+            subscribers.remove(callback)
+            return True
+        else:
+            return False
     else:
         raise ObservablePropertyError(
             f"'{property_name}' is not an observable property of '{instance.__class__.__name__}'"

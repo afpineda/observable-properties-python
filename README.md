@@ -30,7 +30,7 @@ Needless to say, observable properties are also regular properties and they work
 ```python
 t = Test()
 t.value = 1000
-print(t.value)
+print(f"Current value of t: {t.value}")
 ```
 
 ### Subscribe to property changes
@@ -52,7 +52,7 @@ subscribe(observer,t,"value")
 ```
 
 Which means "subscribe `observer` to `t.value`".
-Now, the observer is executed **after** the value of the observed property changes at the observed object:
+Now, the observer is executed after the value of the observed property changes at the observed object:
 
 ```python
 t.value = 2000
@@ -64,27 +64,6 @@ prints:
 Test.value = 2000
 ```
 
-An observer may also subscribe in this way to be executed **before** the value changes:
-
-```python
-def observer_before(instance, property_name, new_value):
-    old_value = getattr(instance, property_name)
-    print(
-        f"{instance.__class__.__name__}.{property_name} changes from {old_value} to {new_value}"
-    )
-subscribe(observer_before, t, "value",before=True)
-t.value = 3000
-```
-
-prints:
-
-```text
-Test.value changes from 2000 to 3000
-Test.value = 3000
-```
-
-Note that both `observer` and `observer_before` were executed.
-
 Additionally:
 
 - Observers **are not allowed** to change the value of the observed property.
@@ -92,12 +71,10 @@ Additionally:
 - The same observer can subscribe to many objects and properties.
 - Any number of observers can subscribe to the same object and property.
   All of them will run. The execution order depends on subscription order.
-- An observer may be executed before or after a value changes, **but not both**.
-  Use different observers for that.
 
 ### Unsubscribe
 
-To stop observing a property, call `unsubscribe()` with the same parameters that were given to `subscribe()` (except for `before=`):
+To stop observing a property, call `unsubscribe()` with the same parameters that were given to `subscribe()`:
 
 ```python
 from observable_properties import unsubscribe
@@ -143,70 +120,51 @@ ObservableTest.value = 900
 #### Observable changes triggered from *non-setter* methods
 
 A public *setter* is **not mandatory** for observable properties of an `Observable` instance.
+This is a common use case for computed properties.
 
-The class itself can notify changes in observable properties by placing a call to the inherited method `_observable_notify()`,
-which executes subscribed observers. For example:
+Any method can notify changes in observable properties in two ways:
 
-```python
-class Duplicator(Observable):
-    def __init__(self, initial_value=1):
-        self._value = initial_value
-    @observable
-    def value(self):
-        return self._value
-    def duplicate(self):
-        new_value = self._value * 2
-        # Trigger subscribed observers before actual change
-        self._observable_notify("value", new_value, True)
-        self._value = new_value
-        # Trigger subscribed observers after actual change
-        self._observable_notify("value", new_value)
-dup = Duplicator(100)
-dup.subscribe("value", observer)
-dup.subscribe("value", observer_before, True)
-dup.duplicate()
-```
-
-prints:
-
-```text
-Duplicator.value changes from 100 to 200
-Duplicator.value = 200
-```
-
-A common use case is to compute observable properties "on the fly":
+- Compute the new value inside the context returned by `self._observable()`.
+  The new value is automatically notified to all subscribers on exit.
+  As an example, see `Product.set()` below.
+- Explicitly call `self._observable_notify()` after the computation is finished.
+  As an example, see `Product.set_alternate()` below.
 
 ```python
 class Product(Observable):
     def __init__(self):
-        self._a = 0;
+        self._a = 0
         self._b = 0
     @observable
     def value(self):
-        return self._a*self._b
+        return self._a * self._b
     def set(self, a, b):
+        with self._observable("value"):
+            self._a = a
+            self._b = b
+    def set_alternate(self, a, b):
+        changed = (a!=self._a) or (b!=self._b)
         self._a = a
         self._b = b
-        self._observable_notify("value",self.value)
+        if (changed):
+            self._observable_notify("value")
 mult = Product()
 mult.subscribe("value", observer)
-mult.subscribe("value", observer_before, True)
-mult.set(3,5)
+mult.set(3, 5)
+mult.set_alternate(4,3)
 ```
 
 prints:
 
 ```text
-Multiplier.value = 15
+Product.value = 15
+Product.value = 12
 ```
-
-**Note** that `observer_before` was **not executed** in the later example
-because the resulting value of the observable property is unknown before the computation itself takes place.
 
 ## Other notes
 
-- Both `subscribe()` and `unsubscribe()` raise `ObservablePropertyError` on non-observable
-  or non-existing properties.
+- `subscribe()`, `unsubscribe()`, `_observable()` and `_observable_notify()`
+  raise `ObservablePropertyError` on non-observable or non-existing properties.
 - Subscribing twice to the same object and property has no effect.
 - Unsubscribing to non-subscribed properties has no effect, but `unsubscribe()` returns False.
 - Objects hold strong references to observers. Deleting an observer does not

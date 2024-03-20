@@ -39,10 +39,15 @@ class Test(Observable):
         self._name = value
 
     def indirect(self, value):
-        self._observable_notify("value", value * 2)
+        self._value = value
+        self._observable_notify("value")
 
     def indirect_failure(self, value):
-        self._observable_notify("name", value * 2)
+        self._observable_notify("name")
+
+    def indirect_with(self,value):
+        with self._observable("value"):
+            self._value = value
 
 
 def assert_obs1(expected):
@@ -64,20 +69,15 @@ not_used = Test()
 def observer1(instance: object, property_name: str, value: Any):
     global __obs1
     __obs1 = value
-
-
-def observer_after(instance: object, property_name: str, value: Any):
     if instance != item:
-        print("Failure at observer_after: passed instance is not 'item'")
+        print("Failure at observer_before: passed instance is not 'item'")
     if property_name != "value":
-        print("Failure at observer_after: observable property name is not 'value'")
+        print("Failure at observer_before: observable property name is not 'value'")
+
+
+def observer2(instance: object, property_name: str, value: Any):
     global __obs2
     __obs2 = value
-
-
-def observer_before(instance: object, property_name: str, value: Any):
-    global __obs2
-    __obs2 = getattr(instance, property_name)
     if instance != item:
         print("Failure at observer_before: passed instance is not 'item'")
     if property_name != "value":
@@ -99,8 +99,7 @@ def test_reset():
     __obs1 = None
     __obs2 = None
     item.unsubscribe("value", observer1)
-    unsubscribe(observer_before, item, "value")
-    unsubscribe(observer_after, item, "value")
+    unsubscribe(observer2, item, "value")
     unsubscribe(invalid_observer, item, "value")
     unsubscribe(async_observer, item, "value")
 
@@ -127,7 +126,7 @@ assert_obs1(1)
 assert_obs2(None)
 
 print("-- Subscribe second observer and assign value")
-subscribe(observer_after, item, "value")
+subscribe(observer2, item, "value")
 item.value = 2
 assert_obs1(2)
 assert_obs2(2)
@@ -135,7 +134,7 @@ assert_obs2(2)
 print("-- Unsubscribe first observer and assign value")
 __obs1 = None
 __obs2 = None
-item.unsubscribe("value", observer1)
+unsubscribe(observer1,item,"value")
 item.value = 3
 assert_obs1(None)
 assert_obs2(3)
@@ -143,13 +142,13 @@ assert_obs2(3)
 print("-- Unsubscribe second observer and assign value")
 __obs1 = None
 __obs2 = None
-unsubscribe(observer_after, item, "value")
+item.unsubscribe("value",observer2)
 item.value = 3
 assert_obs1(None)
 assert_obs2(None)
 
 print("-- Unsubscribing second observer again")
-if unsubscribe(observer_after, item, "value"):
+if unsubscribe(observer2, item, "value"):
     print("Failure.")
 
 
@@ -178,17 +177,6 @@ except ObservablePropertyError:
 except RecursionError:
     print("Failure")
 
-
-print("-- Testing callbacks before and after actual value change")
-test_reset()
-item.value = 5
-item.subscribe("value", observer_before, before=True)
-item.subscribe("value", observer1)
-item.value = 6
-assert_obs1(6)
-assert_obs2(5)
-
-
 print("-- Testing async observer (printing for eye-review)")
 test_reset()
 subscribe(async_observer, item, "value")
@@ -204,7 +192,11 @@ except ObservablePropertyError:
     pass
 
 print("-- Testing in-class indirect change")
-item.indirect(1)
+item.indirect(2)
 assert_obs1(2)
+
+print("-- Testing in-class indirect change with context manager")
+item.indirect_with(3)
+assert_obs1(3)
 
 print("--- END ---")
