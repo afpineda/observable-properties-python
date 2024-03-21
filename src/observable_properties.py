@@ -152,6 +152,7 @@ class Observable:
         Args:
             callback (Callable[[object, str, Any], None]): function to be called.
             property_name (str): name of the observed property.
+                                 Pass an empty string to unsubscribe from all observable properties.
 
         Returns:
             bool: True on success. If false, the property is not observable or does not exist.
@@ -194,9 +195,7 @@ class Observable:
 # *****************************************************************************
 
 
-def subscribe(
-    callback: Observer, instance: object, property_name: str
-) -> None:
+def subscribe(callback: Observer, instance: object, property_name: str) -> None:
     """Subscribe a callback to changes in observable properties.
 
     Args:
@@ -213,13 +212,14 @@ def subscribe(
     subscribers.append(callback)
 
 
-def unsubscribe(callback: Observer, instance: object, property_name: str) -> bool:
+def unsubscribe(callback: Observer, instance: object, property_name: str = "") -> bool:
     """Unsubscribe a callback from changes in observable properties.
 
     Args:
         callback (Callable[[object, str, Any], None]): function to unsubscribe.
         instance (object): observed instance.
         property_name (str): name of the observed property at the given instance.
+                             Pass an empty string to unsubscribe from all observable properties.
 
     Returns:
          bool: True on success. False if the callback was not subscribed.
@@ -227,15 +227,23 @@ def unsubscribe(callback: Observer, instance: object, property_name: str) -> boo
     Raises:
         ObservablePropertyError: if the requested property is not observable or does not exist.
     """
-    subscribers_attr_name = f"__{property_name}_subscribers"
-    if hasattr(instance, subscribers_attr_name):
-        subscribers = getattr(instance, subscribers_attr_name)
-        if callback in subscribers:
-            subscribers.remove(callback)
-            return True
-        else:
-            return False
+    if property_name.__len__() == 0:
+        vrs = vars(instance.__class__)
+        result = False
+        for another_prop_name in vrs:
+            if isinstance(vrs[another_prop_name], observable):
+                result = result or unsubscribe(callback, instance, another_prop_name)
+        return result
     else:
-        raise ObservablePropertyError(
-            f"'{property_name}' is not an observable property of '{instance.__class__.__name__}'"
-        )
+        subscribers_attr_name = f"__{property_name}_subscribers"
+        if hasattr(instance, subscribers_attr_name):
+            subscribers = getattr(instance, subscribers_attr_name)
+            if callback in subscribers:
+                subscribers.remove(callback)
+                return True
+            else:
+                return False
+        else:
+            raise ObservablePropertyError(
+                f"'{property_name}' is not an observable property of '{instance.__class__.__name__}'"
+            )

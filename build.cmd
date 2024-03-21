@@ -1,3 +1,5 @@
+@rem Requires:
+@rem pip install build
 @echo observable_properties: build for distribution
 @echo ---------------------------------
 @echo Running build frontend:

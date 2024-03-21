@@ -82,6 +82,8 @@ from observable_properties import unsubscribe
 unsubscribe(observer,t,"value")
 ```
 
+In order to unsubscribe from all observable properties, pass an empty string (`""`) as the property name.
+
 ### Syntactic sugar
 
 To speed things up, derive your class from the `Observable` class (**note the capital letter**).

@@ -199,4 +199,13 @@ print("-- Testing in-class indirect change with context manager")
 item.indirect_with(3)
 assert_obs1(3)
 
+print("-- Testing unsubscribe to all observable properties")
+test_reset()
+item.subscribe("value",observer1)
+item.value = 1
+unsubscribe(observer1,item)
+item.value = 2
+assert_obs1(1)
+
+
 print("--- END ---")
